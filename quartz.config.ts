@@ -9,7 +9,7 @@ import { typewriterTheme } from "./quartz/themes" // ← Switch theme here
  */
 const config: QuartzConfig = {
   configuration: {
-    pageTitle: "Quartz 4",
+    pageTitle: "🐈‍⬛ BlackCat",
     pageTitleSuffix: "",
     enableSPA: true,
     enablePopovers: true,
