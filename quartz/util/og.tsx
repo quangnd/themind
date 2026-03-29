@@ -14,7 +14,11 @@ import { styleText } from "util"
 const defaultHeaderWeight = [700]
 const defaultBodyWeight = [400]
 
-export async function getSatoriFonts(headerFont: FontSpecification, bodyFont: FontSpecification) {
+export async function getSatoriFonts(
+  headerFont: FontSpecification,
+  bodyFont: FontSpecification,
+  fontOrigin: "googleFonts" | "local" = "googleFonts",
+) {
   // Get all weights for header and body fonts
   const headerWeights: FontWeight[] = (
     typeof headerFont === "string"
@@ -28,9 +32,14 @@ export async function getSatoriFonts(headerFont: FontSpecification, bodyFont: Fo
   const headerFontName = typeof headerFont === "string" ? headerFont : headerFont.name
   const bodyFontName = typeof bodyFont === "string" ? bodyFont : bodyFont.name
 
+  const loadFont =
+    fontOrigin === "local"
+      ? (name: string, weight: FontWeight) => loadLocalFont(name, weight)
+      : (name: string, weight: FontWeight) => fetchTtf(name, weight)
+
   // Fetch fonts for all weights and convert to satori format in one go
   const headerFontPromises = headerWeights.map(async (weight) => {
-    const data = await fetchTtf(headerFontName, weight)
+    const data = await loadFont(headerFontName, weight)
     if (!data) return null
     return {
       name: headerFontName,
@@ -41,7 +50,7 @@ export async function getSatoriFonts(headerFont: FontSpecification, bodyFont: Fo
   })
 
   const bodyFontPromises = bodyWeights.map(async (weight) => {
-    const data = await fetchTtf(bodyFontName, weight)
+    const data = await loadFont(bodyFontName, weight)
     if (!data) return null
     return {
       name: bodyFontName,
@@ -63,6 +72,39 @@ export async function getSatoriFonts(headerFont: FontSpecification, bodyFont: Fo
   ]
 
   return fonts
+}
+
+const fontWeightNames: Record<number, string> = {
+  400: "Regular",
+  700: "Bold",
+}
+
+async function loadLocalFont(
+  rawFontName: string,
+  weight: FontWeight,
+): Promise<Buffer<ArrayBufferLike> | undefined> {
+  const safeName = rawFontName.replaceAll(" ", "")
+  const weightName = fontWeightNames[weight as number] ?? "Regular"
+  const fontsDir = path.join(QUARTZ, "static", "fonts")
+
+  // Try ttf first (required by satori), then woff2
+  for (const ext of ["ttf", "woff2"]) {
+    const fontPath = path.join(fontsDir, `${safeName}-${weightName}.${ext}`)
+    try {
+      await fs.access(fontPath)
+      return fs.readFile(fontPath)
+    } catch {
+      // try next extension
+    }
+  }
+
+  console.log(
+    styleText(
+      "yellow",
+      `\nWarning: Local font file not found for ${rawFontName} weight ${weight}`,
+    ),
+  )
+  return undefined
 }
 
 /**
